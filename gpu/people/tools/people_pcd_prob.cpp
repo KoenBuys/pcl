@@ -290,7 +290,7 @@ int main(int argc, char** argv)
   parse_argument (argc, argv, "-prob", saveProb);
 
   bool debugOutput = 0;
-  parse_argument (argc, argv, "-debug", saveProb);
+  parse_argument (argc, argv, "-debug", debugOutput);
   if(debugOutput)
     setVerbosityLevel(L_DEBUG);
  
