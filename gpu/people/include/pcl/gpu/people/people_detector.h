@@ -131,6 +131,10 @@ namespace pcl
           bool first_iteration_;
           float fx_, fy_, cx_, cy_;
           unsigned int  delta_hue_tolerance_;
+
+          bool enable_org_plane_detector_;              // mark if background measurements of organised plane segmentation need to be included
+          bool enable_haar_cascade_detector_;           // mark if measurements of haar cascade classifier need to be included
+          bool enable_rdf_detector_;                    // mark if measurements of random decision forests need to be included
                    
           DeviceArray<unsigned char>  kernelRect5x5_;
 
@@ -159,6 +163,9 @@ namespace pcl
           int
           processProb ();
 
+          /**
+           *  \brief This function prepares the needed buffers on both host and device
+           **/
           void 
           allocate_buffers (int rows = 480, int cols = 640);
 

@@ -66,6 +66,7 @@ pcl::gpu::people::PeopleDetector::PeopleDetector()
 
   // Create a new organized plane detector
   org_plane_detector_ = OrganizedPlaneDetector::Ptr (new OrganizedPlaneDetector());
+  enable_org_plane_detector_ = true;
 
   // Create a new probability_processor
   probability_processor_ = ProbabilityProcessor::Ptr (new ProbabilityProcessor());
@@ -89,7 +90,6 @@ pcl::gpu::people::PeopleDetector::setIntrinsics (float fx, float fy, float cx, f
   fx_ = fx; fy_ = fy; cx_ = cx; cy_ = cy;
 }
 
-/** @brief This function prepares the needed buffers on both host and device **/
 void
 pcl::gpu::people::PeopleDetector::allocate_buffers(int rows, int cols)
 { 
@@ -243,6 +243,9 @@ pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::C
   allocate_buffers(cloud->height, cloud->width);
 
   const float qnan = std::numeric_limits<float>::quiet_NaN();
+
+  if(enable_org_plane_detector_)
+    org_plane_detector_->process(cloud);
 
   for(size_t i = 0; i < cloud->points.size(); ++i)
   {
