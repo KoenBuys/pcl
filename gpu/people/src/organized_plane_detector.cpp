@@ -82,9 +82,10 @@ pcl::gpu::people::OrganizedPlaneDetector::process(const PointCloud<PointTC>::Con
   PCL_DEBUG("[pcl::gpu::people::OrganizedPlaneDetector::process] : (D) : Called\n");
 
   // Estimate Normals
-  pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
+  normal_cloud_ = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>);
+  //pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
   ne_.setInputCloud (cloud);
-  ne_.compute (*normal_cloud);
+  ne_.compute (*normal_cloud_);
 
   // Segment Planes
   std::vector<pcl::PlanarRegion<PointTC>, Eigen::aligned_allocator<pcl::PlanarRegion<PointTC> > > regions;
@@ -95,7 +96,7 @@ pcl::gpu::people::OrganizedPlaneDetector::process(const PointCloud<PointTC>::Con
   std::vector<pcl::PointIndices> label_indices;
   std::vector<pcl::PointIndices> boundary_indices;
 
-  mps_.setInputNormals (normal_cloud);
+  mps_.setInputNormals (normal_cloud_);
   mps_.setInputCloud (cloud);
   if (mps_use_planar_refinement_)
   {
@@ -116,7 +117,6 @@ pcl::gpu::people::OrganizedPlaneDetector::process(const PointCloud<PointTC>::Con
     }
   }
 }
-
 
 void
 pcl::gpu::people::OrganizedPlaneDetector::allocate_buffers(int rows, int cols)

@@ -70,11 +70,13 @@ namespace pcl
           //typedef DeviceArray2D<unsigned short> Depth;
           //typedef DeviceArray2D<pcl::RGB> Image;
 
-          HostLabelProbability                 P_l_host_;         // This is a HOST histogram!
-          HostLabelProbability                 P_l_host_prev_;
+          HostLabelProbability                              P_l_host_;        // This is a HOST histogram!
+          HostLabelProbability                              P_l_host_prev_;
 
           pcl::device::LabelProbability                     P_l_dev_;         // This is a DEVICE histogram!
           pcl::device::LabelProbability                     P_l_dev_prev_;
+
+          pcl::PointCloud<pcl::Normal>::Ptr                 normal_cloud_;    // Save the normals calculated for organized plane
 
         protected:
           pcl::IntegralImageNormalEstimation<PointTC, pcl::Normal>               ne_;
