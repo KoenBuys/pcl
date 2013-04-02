@@ -128,8 +128,6 @@ namespace pcl
           {
             mps_MinInliers_ = mpsMinInliers;
             mps_.setMinInliers (mps_MinInliers_);
-
-
           }
 
           float getNeMaxDepthChangeFactor () const
@@ -165,6 +163,9 @@ namespace pcl
           copyAndClearHostLabelProbability(HostLabelProbability& src,
                                            HostLabelProbability& dst);
 
+          int
+          uploadToDevice( HostLabelProbability& src,
+                          pcl::device::LabelProbability& dst);
         private:
           void allocate_buffers(int rows = 480, int cols = 640);
 

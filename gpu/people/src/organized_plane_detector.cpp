@@ -187,3 +187,10 @@ pcl::gpu::people::OrganizedPlaneDetector::copyAndClearHostLabelProbability(HostL
   }
   return 1;
 }
+
+int
+pcl::gpu::people::OrganizedPlaneDetector::uploadToDevice( HostLabelProbability& src,
+                                                          pcl::device::LabelProbability& dst)
+{
+  dst.upload(src.points, src.width);
+}

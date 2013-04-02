@@ -362,21 +362,21 @@ int main(int argc, char** argv)
   //}
   if(app.processReturn == 1)
   {
-    PCL_INFO("[Main] : (I) : calling visualisation and write return 1\n");
+    PCL_INFO("[Main] : (I) : Calling visualisation and write return 1\n");
     app.visualizeAndWrite(cloud);
     if(saveProb)
       app.writeProb(cloud);
   }
   else if(app.processReturn == 2)
   {
-    PCL_INFO("[Main] : (I) : calling visualisation and write return 2\n");
+    PCL_INFO("[Main] : (I) : Calling visualisation and write return 2\n");
     app.visualizeAndWrite(cloud);
     if(saveProb)
       app.writeProb(cloud);
   }
   else
   {
-    PCL_INFO("[Main] : (I) : no good person found\n");
+    PCL_INFO("[Main] : (I) : No good person found\n");
   }
   //app.final_view_.spin();
 

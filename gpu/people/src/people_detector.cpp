@@ -245,12 +245,18 @@ pcl::gpu::people::PeopleDetector::process ()
 int
 pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::ConstPtr &cloud)
 {
+  PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Called with PointCloud\n");
   allocate_buffers(cloud->height, cloud->width);
 
   const float qnan = std::numeric_limits<float>::quiet_NaN();
-
   if(enable_org_plane_detector_)
+  {
+    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Processing organised planes\n");
     org_plane_detector_->process(cloud);
+    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Processing organised planes done\n");
+    org_plane_detector_->uploadToDevice(org_plane_detector_->P_l_host_, org_plane_detector_->P_l_dev_);
+    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Planes copied to device\n");
+  }
 
   for(size_t i = 0; i < cloud->points.size(); ++i)
   {
@@ -286,7 +292,13 @@ pcl::gpu::people::PeopleDetector::processProb ()
     //Process input pointcloud with RDF
     rdf_detector_->processProb(depth_device1_);
 
-    probability_processor_->SelectLabel(depth_device1_, rdf_detector_->labels_, rdf_detector_->P_l_);
+    // Test merging labels
+    if(enable_org_plane_detector_)
+    {
+      PCL_INFO("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Combining First iteration probs\n");
+      probability_processor_->CombineProb(depth_device1_, rdf_detector_->P_l_, 0.5, org_plane_detector_->P_l_dev_, 0.5, rdf_detector_->P_l_Gaus_Temp_);
+    }
+    probability_processor_->SelectLabel(depth_device1_, rdf_detector_->labels_, rdf_detector_->P_l_Gaus_Temp_);
   }
   // Join probabilities from previous result
   else
