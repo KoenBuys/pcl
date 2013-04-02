@@ -95,6 +95,11 @@ pcl::gpu::people::PeopleDetector::allocate_buffers(int rows, int cols)
 { 
   device::Dilatation::prepareRect5x5Kernel(kernelRect5x5_);  
 
+  cloud_host_color_.width = cols;
+  cloud_host_color_.height = rows;
+  cloud_host_color_.points.resize(cols * rows);
+  cloud_host_color_.is_dense = false;
+
   cloud_host_.width  = cols;
   cloud_host_.height = rows;
   cloud_host_.points.resize(cols * rows);
