@@ -71,7 +71,7 @@ pcl::gpu::people::PersonAttribs::readPersonXMLConfig (std::istream& is)
   PCL_DEBUG("[pcl::gpu::people::PersonAttribs::readPersonXMLConfig] : (D) : called\n");
   // Read in the property tree
   boost::property_tree::ptree pt;
-  read_xml(is,pt);
+  read_xml(is,pt);                    // TODO write a try, catch around this!!!
 
   // Check file version
   int version = pt.get<int>("version");
