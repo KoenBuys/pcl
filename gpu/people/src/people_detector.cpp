@@ -74,6 +74,9 @@ pcl::gpu::people::PeopleDetector::PeopleDetector()
   // Create a new person attribs
   person_attribs_ = PersonAttribs::Ptr (new PersonAttribs());
 
+  face_detector_ = FaceDetector::Ptr (new FaceDetector(640,480));
+  face_detector_->configure("/data/git/pcl/gpu/people/data/haarcascades/haarcascade_frontalface_default.xml");
+
   // Just created, indicates first time callback (allows for tracking features to start from second frame)
   first_iteration_ = true;
 
@@ -245,17 +248,17 @@ pcl::gpu::people::PeopleDetector::process ()
 int
 pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::ConstPtr &cloud)
 {
-  PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Called with PointCloud\n");
+  PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Called with PointCloud\n");
   allocate_buffers(cloud->height, cloud->width);
 
   const float qnan = std::numeric_limits<float>::quiet_NaN();
   if(enable_org_plane_detector_)
   {
-    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Processing organised planes\n");
+    PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Processing organised planes\n");
     org_plane_detector_->process(cloud);
-    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Processing organised planes done\n");
+    PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Processing organised planes done\n");
     org_plane_detector_->uploadToDevice(org_plane_detector_->P_l_host_, org_plane_detector_->P_l_dev_);
-    PCL_INFO ("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Planes copied to device\n");
+    PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Planes copied to device\n");
   }
 
   for(size_t i = 0; i < cloud->points.size(); ++i)
@@ -265,11 +268,23 @@ pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::C
     cloud_host_color_.points[i].z  = cloud_host_.points[i].z = cloud->points[i].z;
     cloud_host_color_.points[i].rgba = cloud->points[i].rgba;
 
+    if(enable_haar_cascade_detector_)
+    {
+      face_detector_->cloud_rgb_.points[i].rgba = cloud->points[i].rgba;
+    }
+
     bool valid = isFinite(cloud_host_.points[i]);
 
     hue_host_.points[i] = !valid ? qnan : device::computeHue(cloud->points[i].rgba);
     depth_host_.points[i] = !valid ? 0 : static_cast<unsigned short>(cloud_host_.points[i].z * 1000); //m -> mm
   }
+
+  if(enable_haar_cascade_detector_)
+  {
+    PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Processing haar cascades\n");
+    face_detector_->process(face_detector_->cloud_rgb_, face_detector_->cloud_gray_);
+  }
+
   cloud_device_.upload(cloud_host_.points, cloud_host_.width);
   hue_device_.upload(hue_host_.points, hue_host_.width);
   depth_device1_.upload(depth_host_.points, depth_host_.width);
@@ -295,7 +310,7 @@ pcl::gpu::people::PeopleDetector::processProb ()
     // Test merging labels
     if(enable_org_plane_detector_)
     {
-      PCL_INFO("[pcl::gpu::people::PeopleDetector::processProb] : (I) : Combining First iteration probs\n");
+      PCL_DEBUG("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Combining first iteration probs\n");
       probability_processor_->CombineProb(depth_device1_, rdf_detector_->P_l_, 0.5, org_plane_detector_->P_l_dev_, 0.5, rdf_detector_->P_l_Gaus_Temp_);
     }
     probability_processor_->SelectLabel(depth_device1_, rdf_detector_->labels_, rdf_detector_->P_l_Gaus_Temp_);
@@ -342,6 +357,7 @@ pcl::gpu::people::PeopleDetector::processProb ()
 
   // Backup this value in P_l_1_;
   rdf_detector_->P_l_1_.swap(rdf_detector_->P_l_);
+  rdf_detector_->labels_first_.swap(rdf_detector_->labels_); // TODO UNSURE !! about the consequences
 
   const RDFBodyPartsDetector::BlobMatrix& sorted = rdf_detector_->getBlobMatrix();
 
