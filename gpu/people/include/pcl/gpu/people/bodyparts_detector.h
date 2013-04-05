@@ -108,6 +108,9 @@ namespace pcl
 
           //getters
           const Labels& getLabels() const;
+          const Labels& getLabelsFirst() const;
+          const Labels& getSmoothLabels() const;
+          const Labels& getSmoothLabelsFirst() const;
           const pcl::device::LabelProbability& getProbability() const;
           const pcl::device::LabelProbability& getProbability1() const;
           const pcl::device::LabelProbability& getProbability2() const;
@@ -119,8 +122,12 @@ namespace pcl
           
           /** \brief This contains the final body part labels **/
           Labels labels_;
+          /** \brief This contains the first iteration body part labels **/
+          Labels labels_first_;
           /** \brief This contains the smoothed final body part labels **/
           Labels labels_smoothed_;
+          /** \brief This contains the smoothed first iteration body part labels **/
+          Labels labels_smoothed_first_;
 
           /** These contain the histograms of the labels for this detector **/
           pcl::device::LabelProbability P_l_;             // the one is current worked in

@@ -89,7 +89,25 @@ pcl::gpu::people::RDFBodyPartsDetector::getNumberTrees() const
 const pcl::device::Labels&
 pcl::gpu::people::RDFBodyPartsDetector::getLabels() const
 {
+  return labels_;
+}
+
+const pcl::device::Labels&
+pcl::gpu::people::RDFBodyPartsDetector::getLabelsFirst() const
+{
+  return labels_first_;
+}
+
+const pcl::device::Labels&
+pcl::gpu::people::RDFBodyPartsDetector::getSmoothLabels() const
+{
   return labels_smoothed_;
+}
+
+const pcl::device::Labels&
+pcl::gpu::people::RDFBodyPartsDetector::getSmoothLabelsFirst() const
+{
+  return labels_smoothed_first_;
 }
 
 const pcl::device::LabelProbability&
@@ -129,14 +147,15 @@ pcl::gpu::people::RDFBodyPartsDetector::getBlobMatrix() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-
 void 
 pcl::gpu::people::RDFBodyPartsDetector::allocate_buffers(int rows, int cols)
 {
   //std::cout << "(I) : RDFBodyPartsDetector::allocate_buffers called with: " << cols << "x" << rows << std::endl;
 
   labels_.create(rows, cols);
+  labels_first_.create(rows, cols);
   labels_smoothed_.create(rows, cols);
+  labels_smoothed_first_.create(rows, cols);
 
   // Create all the label probabilities
   P_l_.create(rows,cols);
