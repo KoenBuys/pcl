@@ -72,6 +72,17 @@ namespace pcl
     PCL_EXPORTS void
     saveShortPNGFile (const std::string& file_name, const unsigned short *short_image, int width, int height, int channels);
 
+    /** \brief Saves 32-bit encoded image to PNG file.
+      * \param[in] file_name the name of the file to write to disk
+      * \param[in] short_image image short data
+      * \param[in] width image width
+      * \param[in] height image height
+      * \param[in] channels number of channels
+      * \ingroup io
+      */
+    PCL_EXPORTS void
+    saveIntPNGFile (const std::string& file_name, const unsigned int *int_image, int width, int height, int channels);
+
     /** \brief Saves 8-bit encoded RGB image to PNG file.
       * \param[in] file_name the name of the file to write to disk
       * \param[in] rgb_image image rgb data
@@ -101,11 +112,21 @@ namespace pcl
       * \param[in] cloud point cloud to save
       * \ingroup io
       */
-
     void
     savePNGFile (const std::string& file_name, const pcl::PointCloud<unsigned short>& cloud)
     {
       saveShortPNGFile(file_name, &cloud.points[0], cloud.width, cloud.height, 1);
+    }
+
+    /** \brief Saves 32-bit grayscale cloud as image to PNG file.
+      * \param[in] file_name the name of the file to write to disk
+      * \param[in] cloud point cloud to save
+      * \ingroup io
+      */
+    void
+    savePNGFile (const std::string& file_name, const pcl::PointCloud<unsigned int>& cloud)
+    {
+      saveIntPNGFile(file_name, &cloud.points[0], cloud.width, cloud.height, 1);
     }
 
     /** \brief Saves RGB fields of cloud as image to PNG file. 
@@ -127,6 +148,26 @@ namespace pcl
       saveRgbPNGFile(file_name, &data[0], cloud.width, cloud.height);
     } 
     
+    /** \brief Saves Gray scale intensity32u Point cloud as image to PNG file.
+     * \param[in] file_name the name of the file to write to disk
+     * \param[in] cloud point cloud to save
+     * \ingroup io
+     * Warning: Converts to 8 bit (for png)
+     */
+    void
+    savePNGFile (const std::string& file_name, const pcl::PointCloud<pcl::Intensity32u>& cloud)
+    {
+      std::vector<unsigned char> data(cloud.width * cloud.height * 3);
+
+      for (size_t i = 0; i < cloud.points.size (); ++i)
+      {
+        data[i*3 + 0] = static_cast<unsigned char>(cloud.points[i].intensity);
+        data[i*3 + 1] = static_cast<unsigned char>(cloud.points[i].intensity);
+        data[i*3 + 2] = static_cast<unsigned char>(cloud.points[i].intensity);
+      }
+      saveRgbPNGFile(file_name, &data[0], cloud.width, cloud.height);
+    }
+
     /** \brief Saves Labeled Point cloud as image to PNG file. 
      * \param[in] file_name the name of the file to write to disk
      * \param[in] cloud point cloud to save

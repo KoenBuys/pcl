@@ -59,10 +59,7 @@ namespace
   }
 };
 
-
-
-
-void 
+void
 pcl::io::saveCharPNGFile (const std::string &file_name, const unsigned char *char_data, int width, int height, int channels)
 {
   vtkSmartPointer<vtkImageImport> importer = vtkSmartPointer<vtkImageImport>::New ();
@@ -88,6 +85,22 @@ pcl::io::saveShortPNGFile (const std::string &file_name, const unsigned short *s
   importer->SetDataExtentToWholeExtent ();
 
   void* data = const_cast<void*> (reinterpret_cast<const void*> (short_image));
+  importer->SetImportVoidPointer (data, 1);
+  importer->Update ();
+
+  flipAndWritePng(file_name, importer);
+}
+
+void
+pcl::io::saveIntPNGFile (const std::string &file_name, const unsigned int *int_data, int width, int height, int channels)
+{
+  vtkSmartPointer<vtkImageImport> importer = vtkSmartPointer<vtkImageImport>::New ();
+  importer->SetNumberOfScalarComponents (channels);
+  importer->SetDataScalarTypeToInt ();
+  importer->SetWholeExtent (0, width - 1, 0, height - 1, 0, 0);
+  importer->SetDataExtentToWholeExtent ();
+
+  void* data = const_cast<void*> (reinterpret_cast<const void*> (int_data));
   importer->SetImportVoidPointer (data, 1);
   importer->Update ();
 
