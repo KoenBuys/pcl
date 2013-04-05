@@ -64,7 +64,7 @@ namespace pcl
           //typedef DeviceArray2D<pcl::RGB> Image;
 
           /** \brief This is the constructor **/
-          FaceDetector ( int cols, int rows);
+          FaceDetector ( int cols = 640, int rows = 480);
 
           NCVStatus
           loadFromXML2(const std::string                   &filename,
@@ -164,6 +164,9 @@ namespace pcl
           int
           getDeviceId() {return cuda_dev_id_;}
 
+          pcl::PointCloud<pcl::RGB>               cloud_rgb_;                     // The input pointcloud
+          pcl::PointCloud<pcl::Intensity32u>      cloud_gray_;
+
         private:
           bool                largest_object_;      /** \brief only give back largest object **/
           bool                filter_rects_;        /** \brief rectangular filter **/
@@ -192,6 +195,7 @@ namespace pcl
 
           NCVMemStackAllocator*                   gpu_counter_;
           NCVMemStackAllocator*                   cpu_counter_;
+
 
       };
     }

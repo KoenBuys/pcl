@@ -68,13 +68,22 @@ pcl::gpu::people::FaceDetector::FaceDetector(int cols, int rows)
 {
   PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Constructor called\n");
 
+  cloud_rgb_.width = cols;
+  cloud_rgb_.height = rows;
+  cloud_rgb_.points.resize(cols * rows);
+  cloud_rgb_.is_dense = true;
+
+  cloud_gray_.width = cols;
+  cloud_gray_.height = rows;
+  cloud_gray_.points.resize(cols * rows);
+  cloud_gray_.is_dense = true;
+
   cols_ = cols; rows_ = rows;
 
   cuda_dev_id_ = 0;
   cudaSafeCall ( cudaSetDevice (cuda_dev_id_));
   cudaSafeCall ( cudaGetDeviceProperties (&cuda_dev_prop_, cuda_dev_id_));
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Using GPU: %d ( %s ), arch= %d . %d\n",cuda_dev_id_, cuda_dev_prop_.name, cuda_dev_prop_.major, cuda_dev_prop_.minor);
-
+  PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Using GPU: %d ( %s ), arch= %d.%d\n",cuda_dev_id_, cuda_dev_prop_.name, cuda_dev_prop_.major, cuda_dev_prop_.minor);
 }
 
 /**
@@ -87,6 +96,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                                              std::vector<HaarClassifierNode128>  &haarClassifierNodes,
                                              std::vector<HaarFeature64>          &haar_features)
 {
+  PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Called\n");
   NCVStatus ncv_return_status;      // TODO remove this type
 
   boost::property_tree::ptree pt;
@@ -104,7 +114,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
   }
   catch(boost::exception const&  exb)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to read filename with boost exception\n");
+    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to read filename (%s) with boost exception\n", filename.c_str());
     return NCV_HAAR_XML_LOADING_EXCEPTION;
   }
   catch (std::exception const&  ex)
@@ -266,8 +276,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                     {
                         //other node
                         host_temp_classifier_not_root_nodes.push_back(current_node);
-                        // TODO replace with PCL_DEBUG in the future
-                        PCL_INFO("[pcl::gpu::people::FaceDetector::loadFromXML2] : (I) : Found non root node number %d", host_temp_classifier_not_root_nodes.size());
+                        PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Found non root node number %d", host_temp_classifier_not_root_nodes.size());
                         cur_max_tree_depth++;
                     }
                     node_identifier++;
@@ -283,8 +292,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
               current_stage.setNumClassifierRootNodes(tmp_num_classifier_root_nodes);
               haar_stages.push_back(current_stage);
 
-              // TODO make this DEBUG later on
-              PCL_INFO("[pcl::gpu::people::FaceDetector::loadFromXML2] : (I) : level 3 stage %d loaded with %d Root Nodes, %f Threshold, %d Root Node Offset", haar_stages.size(), tmp_num_classifier_root_nodes, current_stage.getStartClassifierRootNodeOffset());
+              PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 3 stage %d loaded with %d Root Nodes, %f Threshold, %d Root Node Offset\n", haar_stages.size(), tmp_num_classifier_root_nodes, current_stage.getStartClassifierRootNodeOffset());
 
               level3++;
             }
@@ -297,7 +305,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
       else
       {
         PCL_WARN("[pcl::gpu::people::FaceDetector::loadFromXML2] : (W) : Found first level node that is atypical : %s\n", top_node.first.c_str());
-        return (NCV_HAAR_XML_LOADING_EXCEPTION);
+        //return (NCV_HAAR_XML_LOADING_EXCEPTION); //Not needed, just a warning
       }
       level1++;
     }
@@ -645,6 +653,7 @@ pcl::gpu::people::FaceDetector::NCVprocess(pcl::PointCloud<pcl::RGB>&           
 int
 pcl::gpu::people::FaceDetector::configure(std::string cascade_file_name)
 {
+  PCL_DEBUG("[pcl::gpu::people::FaceDetector::configure] : (D) : Called\n");
   cascade_file_name_ = cascade_file_name;
 
   // Load the classifier from file (assuming its size is about 1 mb), using a simple allocator
