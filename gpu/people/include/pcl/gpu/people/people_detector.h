@@ -50,7 +50,7 @@
 //#include <opencv2/core/core.hpp>
 
 #include <pcl/gpu/people/bodyparts_detector.h>
-#include <pcl/gpu/people/face_detector.h>
+#include <pcl/gpu/people/haar_cascade_detector.h>
 #include <pcl/gpu/people/organized_plane_detector.h>
 #include <pcl/gpu/people/probability_processor.h>
 
@@ -79,7 +79,7 @@ namespace pcl
           // ALL THE DETECTOR OBJECTS
           RDFBodyPartsDetector::Ptr     rdf_detector_;
           OrganizedPlaneDetector::Ptr   org_plane_detector_;
-          FaceDetector::Ptr             face_detector_;
+          HaarCascadeDetector::Ptr      haar_cascade_detector_;
           //OtherDetector::Ptr          other_detector_;
 
           // ALL THE OTHER PEOPLE STUFF
@@ -87,7 +87,7 @@ namespace pcl
           ProbabilityProcessor::Ptr     probability_processor_;
 
           /** \brief Class constructor. */
-          PeopleDetector ();
+          PeopleDetector (bool enable_org_plane_detector = true, bool enable_haar_cascade_detector = false);
           
           /** \brief Class destructor. */
           ~PeopleDetector () {}                   

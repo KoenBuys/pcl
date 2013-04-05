@@ -55,16 +55,16 @@ namespace pcl
   {
     namespace people
     {
-      class FaceDetector
+      class HaarCascadeDetector
       {
         public:
-          typedef boost::shared_ptr<FaceDetector> Ptr;
+          typedef boost::shared_ptr<HaarCascadeDetector> Ptr;
           //typedef DeviceArray2D<unsigned char> Labels;
           //typedef DeviceArray2D<unsigned short> Depth;
           //typedef DeviceArray2D<pcl::RGB> Image;
 
           /** \brief This is the constructor **/
-          FaceDetector ( int cols = 640, int rows = 480);
+          HaarCascadeDetector ( int cols = 640, int rows = 480);
 
           NCVStatus
           loadFromXML2(const std::string                   &filename,
@@ -168,16 +168,18 @@ namespace pcl
           pcl::PointCloud<pcl::Intensity32u>      cloud_gray_;
 
         private:
-          bool                largest_object_;      /** \brief only give back largest object **/
-          bool                filter_rects_;        /** \brief rectangular filter **/
+          /** \brief only give back largest object **/
+          bool                                    largest_object_;
+          /** \brief rectangular filter **/
+          bool                                    filter_rects_;
+          /** \brief indicates which GPU to use for this **/
+          int                                     cuda_dev_id_;
+          cudaDeviceProp                          cuda_dev_prop_;
 
-          int                 cuda_dev_id_;         /** \brief indicates which GPU to use for this **/
-          cudaDeviceProp      cuda_dev_prop_;
+          std::string                             cascade_file_name_;
 
-          std::string         cascade_file_name_;
-
-          int                 rows_;                // should default to 480
-          int                 cols_;                // should default to 640
+          int                                     rows_;                // should default to 480
+          int                                     cols_;                // should default to 640
 
           HaarClassifierCascadeDescriptor         haar_clas_casc_descr_;
           NCVVectorAlloc<HaarStage64>*            haar_stages_dev_;
@@ -195,7 +197,6 @@ namespace pcl
 
           NCVMemStackAllocator*                   gpu_counter_;
           NCVMemStackAllocator*                   cpu_counter_;
-
 
       };
     }

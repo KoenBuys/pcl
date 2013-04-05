@@ -34,7 +34,7 @@
  * @author: Koen Buys
  */
 
-#include <pcl/gpu/people/face_detector.h>
+#include <pcl/gpu/people/haar_cascade_detector.h>
 #include <pcl/console/print.h>
 #include <pcl/gpu/utils/safe_call.hpp>
 #include <pcl/point_types_conversion.h>
@@ -64,9 +64,9 @@
 
 using boost::property_tree::ptree;
 
-pcl::gpu::people::FaceDetector::FaceDetector(int cols, int rows)
+pcl::gpu::people::HaarCascadeDetector::HaarCascadeDetector(int cols, int rows)
 {
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Constructor called\n");
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::HaarCascadeDetector] : (D) : Constructor called\n");
 
   cloud_rgb_.width = cols;
   cloud_rgb_.height = rows;
@@ -83,20 +83,20 @@ pcl::gpu::people::FaceDetector::FaceDetector(int cols, int rows)
   cuda_dev_id_ = 0;
   cudaSafeCall ( cudaSetDevice (cuda_dev_id_));
   cudaSafeCall ( cudaGetDeviceProperties (&cuda_dev_prop_, cuda_dev_id_));
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Using GPU: %d ( %s ), arch= %d.%d\n",cuda_dev_id_, cuda_dev_prop_.name, cuda_dev_prop_.major, cuda_dev_prop_.minor);
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::HaarCascadeDetector] : (D) : Using GPU: %d ( %s ), arch= %d.%d\n",cuda_dev_id_, cuda_dev_prop_.name, cuda_dev_prop_.major, cuda_dev_prop_.minor);
 }
 
 /**
  * \brief This loads the Haar description file from a XML file format
  */
 NCVStatus
-pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                   &filename,
+pcl::gpu::people::HaarCascadeDetector::loadFromXML2(const std::string                   &filename,
                                              HaarClassifierCascadeDescriptor     &haar,
                                              std::vector<HaarStage64>            &haar_stages,
                                              std::vector<HaarClassifierNode128>  &haarClassifierNodes,
                                              std::vector<HaarFeature64>          &haar_features)
 {
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Called\n");
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Called\n");
   NCVStatus ncv_return_status;      // TODO remove this type
 
   boost::property_tree::ptree pt;
@@ -114,17 +114,17 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
   }
   catch(boost::exception const&  exb)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to read filename (%s) with boost exception\n", filename.c_str());
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to read filename (%s) with boost exception\n", filename.c_str());
     return NCV_HAAR_XML_LOADING_EXCEPTION;
   }
   catch (std::exception const&  ex)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to read filename with exception %s\n", ex.what());
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to read filename with exception %s\n", ex.what());
     return NCV_HAAR_XML_LOADING_EXCEPTION;
   }
   catch (...)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to read filename\n");
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to read filename\n");
     return NCV_HAAR_XML_LOADING_EXCEPTION;
   }
 
@@ -146,7 +146,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
     {
       if(!strcmp(top_node.first.c_str(), "opencv_storage"))      // Else NCV_HAAR_XML_LOADING_EXCEPTION
       {
-        PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 1, XMLnode %d, first : %s\n", level1, top_node.first.c_str());
+        PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 1, XMLnode %d, first : %s\n", level1, top_node.first.c_str());
 
         int level2 = 0;
         boost::property_tree::ptree pt2 = top_node.second;
@@ -156,7 +156,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
         {
           if(!strcmp(w.second.get("<xmlattr>.type_id","").c_str(), "opencv-haar-classifier"))                      // Else NCV_HAAR_XML_LOADING_EXCEPTION
           {
-            PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 2, XMLnode %d, first : %s\n", level2, w.first.c_str());
+            PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 2, XMLnode %d, first : %s\n", level2, w.first.c_str());
 
             // Parse the size field, giving the classifier patch size
             std::string size_string  = w.second.get<std::string>("size");                                         // data field contains both width and height so we put it in string first
@@ -165,17 +165,17 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
             l >> std::skipws >> haar.ClassifierSize.width >> haar.ClassifierSize.height;
             if ( !l || haar.ClassifierSize.width <= 0 || haar.ClassifierSize.height <= 0 )
             {
-              PCL_WARN("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 2 : size node format error\n");   //  format error: line doesn't start with an int.
+              PCL_WARN("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 2 : size node format error\n");   //  format error: line doesn't start with an int.
               return (NCV_HAAR_XML_LOADING_EXCEPTION);
             }
             else
-              PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level2 : size int1 %d, int2 %d\n", haar.ClassifierSize.width, haar.ClassifierSize.height);
+              PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level2 : size int1 %d, int2 %d\n", haar.ClassifierSize.width, haar.ClassifierSize.height);
 
             int level3 = 0;
             /// LEVEL3 (Stages)
             BOOST_FOREACH(const ptree::value_type &stage, w.second.get_child("stages"))
             {
-              PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 3, XMLnode %d, first : %s\n", level3, stage.first.c_str());
+              PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 3, XMLnode %d, first : %s\n", level3, stage.first.c_str());
 
               HaarStage64 current_stage;
               current_stage.setStartClassifierRootNodeOffset(haarClassifierNodes.size());
@@ -187,13 +187,13 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
 
               current_stage.setStageThreshold(stage_threshold);
 
-              PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 3 stage_threshold %f, parent %d, next %d\n", stage_threshold, parent, next);
+              PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 3 stage_threshold %f, parent %d, next %d\n", stage_threshold, parent, next);
 
               int level4 = 0;
               /// LEVEL4 (Trees)
               BOOST_FOREACH(const ptree::value_type &tree, stage.second.get_child("trees"))
               {
-                PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 4, XMLnode %d, first : %s\n", level4, tree.first.c_str());
+                PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 4, XMLnode %d, first : %s\n", level4, tree.first.c_str());
                 Ncv32u node_identifier = 0;
 
                 int level5 = 0;
@@ -202,7 +202,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                 /// LEVEL5 (Root_node)
                 BOOST_FOREACH(const ptree::value_type &root_node, root)
                 {
-                  PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 5, node %d, first : %s\n", level5, root_node.first.c_str());
+                  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 5, node %d, first : %s\n", level5, root_node.first.c_str());
 
                   if(!strcmp(root_node.first.c_str(), "_"))
                   {
@@ -217,7 +217,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
 
                     current_node.setThreshold(node_threshold);
 
-                    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 5 node_threshold %f, left_val %f, right_val %f, tilted %d\n", node_threshold, left_val, right_val, tilted);
+                    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 5 node_threshold %f, left_val %f, right_val %f, tilted %d\n", node_threshold, left_val, right_val, tilted);
 
                     HaarClassifierNodeDescriptor32 node_left;
                     ncv_return_status = node_left.create(left_val);                              // TODO check ncv_return_status return value line below and return
@@ -233,7 +233,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                     /// LEVEL6 (Rects)
                     BOOST_FOREACH(const ptree::value_type &rect, root_node.second.get_child("feature.rects"))
                     {
-                      PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 6, first : %s\n", rect.first.c_str());
+                      PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 6, first : %s\n", rect.first.c_str());
 
                       std::string r = rect.second.data();
 
@@ -245,11 +245,11 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                       if ( !re )
                       {
                         //  format error: line doesn't start with an int.
-                        PCL_WARN("[pcl::gpu::people::FaceDetector::loadFromXML2] : (W) : level 6 : rect format error\n");
+                        PCL_WARN("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (W) : level 6 : rect format error\n");
                       }
                       else
                       {
-                        PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 6 : rectangle_u %d, rectangle_v %d, rectW %d, rectH %d, rectWeight %f\n", rectangle_u, rectangle_v, rectangle_width, rectangle_height, rectWeight);
+                        PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 6 : rectangle_u %d, rectangle_v %d, rectW %d, rectH %d, rectWeight %f\n", rectangle_u, rectangle_v, rectangle_width, rectangle_height, rectWeight);
                         HaarFeature64 current_feature;
                         ncv_return_status = current_feature.setRect(rectangle_u, rectangle_v, rectangle_width, rectangle_height, haar.ClassifierSize.width, haar.ClassifierSize.height);
                         current_feature.setWeight(rectWeight);
@@ -276,13 +276,13 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
                     {
                         //other node
                         host_temp_classifier_not_root_nodes.push_back(current_node);
-                        PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Found non root node number %d", host_temp_classifier_not_root_nodes.size());
+                        PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Found non root node number %d", host_temp_classifier_not_root_nodes.size());
                         cur_max_tree_depth++;
                     }
                     node_identifier++;
                   }
                   else
-                    PCL_WARN("[pcl::gpu::people::FaceDetector::loadFromXML2] : (W) : Found fifth level node that is atypical : %s\n", root_node.first.c_str());
+                    PCL_WARN("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (W) : Found fifth level node that is atypical : %s\n", root_node.first.c_str());
                   level5++;
                 }
                 tmp_num_classifier_root_nodes++;
@@ -292,7 +292,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
               current_stage.setNumClassifierRootNodes(tmp_num_classifier_root_nodes);
               haar_stages.push_back(current_stage);
 
-              PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : level 3 stage %d loaded with %d Root Nodes, %f Threshold, %d Root Node Offset\n", haar_stages.size(), tmp_num_classifier_root_nodes, current_stage.getStartClassifierRootNodeOffset());
+              PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : level 3 stage %d loaded with %d Root Nodes, %f Threshold, %d Root Node Offset\n", haar_stages.size(), tmp_num_classifier_root_nodes, current_stage.getStartClassifierRootNodeOffset());
 
               level3++;
             }
@@ -304,7 +304,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
       }
       else
       {
-        PCL_WARN("[pcl::gpu::people::FaceDetector::loadFromXML2] : (W) : Found first level node that is atypical : %s\n", top_node.first.c_str());
+        PCL_WARN("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (W) : Found first level node that is atypical : %s\n", top_node.first.c_str());
         //return (NCV_HAAR_XML_LOADING_EXCEPTION); //Not needed, just a warning
       }
       level1++;
@@ -312,17 +312,17 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
   }
   catch(boost::exception const&  exb)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to process content with boost exception\n");
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to process content with boost exception\n");
     return (NCV_HAAR_XML_LOADING_EXCEPTION);
   }
   catch (std::exception const&  ex)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to process content with std exception %s\n", ex.what());
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to process content with std exception %s\n", ex.what());
     return (NCV_HAAR_XML_LOADING_EXCEPTION);
   }
   catch (...)
   {
-    PCL_DEBUG("[pcl::gpu::people::FaceDetector::loadFromXML2] : (D) : Unable to process content\n");
+    PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::loadFromXML2] : (D) : Unable to process content\n");
     return (NCV_HAAR_XML_LOADING_EXCEPTION);
   }
 
@@ -381,7 +381,7 @@ pcl::gpu::people::FaceDetector::loadFromXML2(const std::string                  
  * \brief This loads the Haar description file from a NVBIN file format
  */
 NCVStatus
-pcl::gpu::people::FaceDetector::loadFromNVBIN(const std::string &filename,
+pcl::gpu::people::HaarCascadeDetector::loadFromNVBIN(const std::string &filename,
                                HaarClassifierCascadeDescriptor &haar,
                                std::vector<HaarStage64> &haar_stages,
                                std::vector<HaarClassifierNode128> &haarClassifierNodes,
@@ -448,7 +448,7 @@ pcl::gpu::people::FaceDetector::loadFromNVBIN(const std::string &filename,
  * \brief Depending on file format load the Haar description file
  */
 NCVStatus
-pcl::gpu::people::FaceDetector::ncvHaarLoadFromFile_host(const std::string &filename,
+pcl::gpu::people::HaarCascadeDetector::ncvHaarLoadFromFile_host(const std::string &filename,
                                    HaarClassifierCascadeDescriptor &haar,
                                    NCVVector<HaarStage64> &h_haar_stages,
                                    NCVVector<HaarClassifierNode128> &h_haar_nodes,
@@ -497,7 +497,7 @@ pcl::gpu::people::FaceDetector::ncvHaarLoadFromFile_host(const std::string &file
  * \brief Scans the Haar description file for the sizes of the Stages, Nodes and Features
  */
 NCVStatus
-pcl::gpu::people::FaceDetector::ncvHaarGetClassifierSize(const std::string &filename,
+pcl::gpu::people::HaarCascadeDetector::ncvHaarGetClassifierSize(const std::string &filename,
                                                          Ncv32u &numStages,
                                                          Ncv32u &numNodes,
                                                          Ncv32u &numFeatures)
@@ -554,7 +554,7 @@ pcl::gpu::people::FaceDetector::ncvHaarGetClassifierSize(const std::string &file
  * \brief the Wrapper that calls the actual Nvidia code
  */
 NCVStatus
-pcl::gpu::people::FaceDetector::NCVprocess(pcl::PointCloud<pcl::RGB>&           cloud_in,
+pcl::gpu::people::HaarCascadeDetector::NCVprocess(pcl::PointCloud<pcl::RGB>&           cloud_in,
                                            pcl::PointCloud<pcl::Intensity32u>&  cloud_out,
                                            HaarClassifierCascadeDescriptor      &haar,
                                            NCVVector<HaarStage64>               &d_haar_stages,
@@ -651,58 +651,58 @@ pcl::gpu::people::FaceDetector::NCVprocess(pcl::PointCloud<pcl::RGB>&           
  * \brief This does the GPU allocations and configurations
  */
 int
-pcl::gpu::people::FaceDetector::configure(std::string cascade_file_name)
+pcl::gpu::people::HaarCascadeDetector::configure(std::string cascade_file_name)
 {
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::configure] : (D) : Called\n");
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::configure] : (D) : Called\n");
   cascade_file_name_ = cascade_file_name;
 
   // Load the classifier from file (assuming its size is about 1 mb), using a simple allocator
   gpu_allocator_ = new NCVMemNativeAllocator(NCVMemoryTypeDevice, static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_allocator_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating cascade GPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_allocator_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating cascade GPU allocator", -1);
 
   cpu_allocator_ = new NCVMemNativeAllocator(NCVMemoryTypeHostPinned, static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_allocator_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating cascade CPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_allocator_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating cascade CPU allocator", -1);
 
   NCVStatus ncv_return_status;
   Ncv32u haarNumStages, haarNumNodes, haarNumFeatures;
 
   ncv_return_status = ncvHaarGetClassifierSize(cascade_file_name_, haarNumStages, haarNumNodes, haarNumFeatures);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error reading classifier size (check the file)", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::configure] : Error reading classifier size (check the file)", -1);
 
   haar_stages_host_ = new NCVVectorAlloc<HaarStage64>(*cpu_allocator_, haarNumStages);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_stages_host_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade CPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_stages_host_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade CPU allocator", -1);
 
   haar_nodes_host_ = new NCVVectorAlloc<HaarClassifierNode128>(*cpu_allocator_, haarNumNodes);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_nodes_host_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade CPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_nodes_host_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade CPU allocator", -1);
 
   haar_features_host_ = new NCVVectorAlloc<HaarFeature64>(*cpu_allocator_, haarNumFeatures);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_features_host_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade CPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_features_host_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade CPU allocator", -1);
 
   ncv_return_status = ncvHaarLoadFromFile_host(cascade_file_name_, haar_clas_casc_descr_, *haar_stages_host_, *haar_nodes_host_, *haar_features_host_);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error loading classifier", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::configure] : Error loading classifier", -1);
 
   haar_stages_dev_ = new NCVVectorAlloc<HaarStage64>(*gpu_allocator_, haarNumStages);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_stages_dev_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade GPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_stages_dev_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade GPU allocator", -1);
 
   haar_nodes_dev_ = new NCVVectorAlloc<HaarClassifierNode128>(*gpu_allocator_, haarNumNodes);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_nodes_dev_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade GPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_nodes_dev_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade GPU allocator", -1);
 
   haar_features_dev_ = new NCVVectorAlloc<HaarFeature64>(*gpu_allocator_, haarNumFeatures);
-  PCL_ASSERT_ERROR_PRINT_RETURN(haar_features_dev_->isMemAllocated(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in cascade GPU allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(haar_features_dev_->isMemAllocated(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error in cascade GPU allocator", -1);
 
   ncv_return_status = haar_stages_host_->copySolid(*haar_stages_dev_, 0);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error copying cascade to GPU", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::configure] : Error copying cascade to GPU", -1);
   ncv_return_status = haar_nodes_host_->copySolid(*haar_nodes_dev_, 0);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error copying cascade to GPU", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::configure] : Error copying cascade to GPU", -1);
   ncv_return_status = haar_features_host_->copySolid(*haar_features_dev_, 0);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error copying cascade to GPU", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::configure] : Error copying cascade to GPU", -1);
 
   // Calculate memory requirements and create real allocators
   gpu_counter_ = new NCVMemStackAllocator(static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_counter_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating GPU memory counter", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_counter_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating GPU memory counter", -1);
 
   cpu_counter_ = new NCVMemStackAllocator(static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_counter_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating CPU memory counter", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_counter_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating CPU memory counter", -1);
 
   // TODO fix this fake call
   /*
@@ -711,22 +711,22 @@ pcl::gpu::people::FaceDetector::configure(std::string cascade_file_name)
                         d_haar_stages, d_haar_nodes,
                         d_haar_features, h_haar_stages,
                         gpuCounter, cpuCounter, cuda_dev_prop_);
-  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::FaceDetector::FaceDetector] : Error in memory counting pass", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(ncv_return_status == NCV_SUCCESS, "[pcl::gpu::people::HaarCascadeDetector::HaarCascadeDetector] : Error in memory counting pass", -1);
   */
 
   gpu_stack_allocator_ = new NCVMemStackAllocator(NCVMemoryTypeDevice, gpu_counter_->maxSize(), static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_stack_allocator_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating GPU memory allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(gpu_stack_allocator_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating GPU memory allocator", -1);
 
   cpu_stack_allocator_ = new NCVMemStackAllocator(NCVMemoryTypeHostPinned, cpu_counter_->maxSize(), static_cast<Ncv32u>(cuda_dev_prop_.textureAlignment));
-  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_stack_allocator_->isInitialized(), "[pcl::gpu::people::FaceDetector::FaceDetector] : Error creating CPU memory allocator", -1);
+  PCL_ASSERT_ERROR_PRINT_RETURN(cpu_stack_allocator_->isInitialized(), "[pcl::gpu::people::HaarCascadeDetector::configure] : Error creating CPU memory allocator", -1);
 
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::FaceDetector] : (D) : Initialized for frame size [%dx%d]\n", cols_, rows_);
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::configure] : (D) : Initialized for frame size [%dx%d]\n", cols_, rows_);
 
   return 1;
 }
 
 void
-pcl::gpu::people::FaceDetector::setDeviceId( int id )
+pcl::gpu::people::HaarCascadeDetector::setDeviceId( int id )
 {
   cuda_dev_id_ = id;
   cudaSafeCall ( cudaSetDevice (cuda_dev_id_));
@@ -734,10 +734,10 @@ pcl::gpu::people::FaceDetector::setDeviceId( int id )
 }
 
 void
-pcl::gpu::people::FaceDetector::process(pcl::PointCloud<pcl::RGB>& cloud_in,
+pcl::gpu::people::HaarCascadeDetector::process(pcl::PointCloud<pcl::RGB>& cloud_in,
                                         pcl::PointCloud<pcl::Intensity32u>& cloud_out)
 {
-  PCL_DEBUG("[pcl::gpu::people::FaceDetector::process] : (D) : called\n");
+  PCL_DEBUG("[pcl::gpu::people::HaarCascadeDetector::process] : (D) : called\n");
   cols_ = cloud_in.width; rows_ = cloud_in.height;
 
   // TODO do something with the NCVStatus return value

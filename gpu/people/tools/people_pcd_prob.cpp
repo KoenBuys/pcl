@@ -212,7 +212,7 @@ class PeoplePCDApp
 
       // Visualize
       final_view_.showRGBImage<pcl::RGB>(cmap_smooth);
-      //final_view_.showRGBImage<pcl::RGB>(people_detector_.face_detector_);
+      //final_view_.showRGBImage<pcl::RGB>(people_detector_.haar_cascade_detector_);
       final_view_.spinOnce(1, true);
 
       image_view_.showRGBImage<PointT>(cloud);
@@ -220,7 +220,7 @@ class PeoplePCDApp
 
       // Save other PNG formats
       savePNGFile(make_png_name(counter_, "ii"), *cloud);
-      savePNGFile(make_png_name(counter_, "haar"), people_detector_.face_detector_->cloud_gray_);
+      //savePNGFile(make_png_name(counter_, "haar"), people_detector_.haar_cascade_detector_->cloud_gray_);
       savePNGFile(make_png_name(counter_, "s2"), labelsmooth);
       savePNGFile(make_png_name(counter_, "d1"), people_detector_.depth_device1_);
       savePNGFile(make_png_name(counter_, "d2"), people_detector_.depth_device2_);

@@ -59,23 +59,30 @@ using namespace pcl::gpu::people;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pcl::gpu::people::PeopleDetector::PeopleDetector() 
-    : fx_(525.f), fy_(525.f), cx_(319.5f), cy_(239.5f), delta_hue_tolerance_(5)
+pcl::gpu::people::PeopleDetector::PeopleDetector(bool enable_org_plane_detector, bool enable_haar_cascade_detector)
+    : fx_(525.f), fy_(525.f), cx_(319.5f), cy_(239.5f), delta_hue_tolerance_(5),
+      enable_org_plane_detector_(enable_org_plane_detector),
+      enable_haar_cascade_detector_(enable_haar_cascade_detector)
 {
   PCL_DEBUG ("[pcl::gpu::people::PeopleDetector] : (D) : Constructor called\n");
 
-  // Create a new organized plane detector
-  org_plane_detector_ = OrganizedPlaneDetector::Ptr (new OrganizedPlaneDetector());
-  enable_org_plane_detector_ = true;
+  if(enable_org_plane_detector_)
+  {
+    // Create a new organized plane detector
+    org_plane_detector_ = OrganizedPlaneDetector::Ptr (new OrganizedPlaneDetector());
+  }
+
+  if(enable_haar_cascade_detector_)
+  {
+    haar_cascade_detector_ = HaarCascadeDetector::Ptr (new HaarCascadeDetector(640,480));
+    haar_cascade_detector_->configure("/data/git/pcl/gpu/people/data/haarcascades/haarcascade_frontalface_default.xml");
+  }
 
   // Create a new probability_processor
   probability_processor_ = ProbabilityProcessor::Ptr (new ProbabilityProcessor());
 
   // Create a new person attribs
   person_attribs_ = PersonAttribs::Ptr (new PersonAttribs());
-
-  face_detector_ = FaceDetector::Ptr (new FaceDetector(640,480));
-  face_detector_->configure("/data/git/pcl/gpu/people/data/haarcascades/haarcascade_frontalface_default.xml");
 
   // Just created, indicates first time callback (allows for tracking features to start from second frame)
   first_iteration_ = true;
@@ -270,7 +277,7 @@ pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::C
 
     if(enable_haar_cascade_detector_)
     {
-      face_detector_->cloud_rgb_.points[i].rgba = cloud->points[i].rgba;
+      haar_cascade_detector_->cloud_rgb_.points[i].rgba = cloud->points[i].rgba;
     }
 
     bool valid = isFinite(cloud_host_.points[i]);
@@ -282,7 +289,7 @@ pcl::gpu::people::PeopleDetector::processProb (const pcl::PointCloud<PointTC>::C
   if(enable_haar_cascade_detector_)
   {
     PCL_DEBUG ("[pcl::gpu::people::PeopleDetector::processProb] : (D) : Processing haar cascades\n");
-    face_detector_->process(face_detector_->cloud_rgb_, face_detector_->cloud_gray_);
+    haar_cascade_detector_->process(haar_cascade_detector_->cloud_rgb_, haar_cascade_detector_->cloud_gray_);
   }
 
   cloud_device_.upload(cloud_host_.points, cloud_host_.width);
