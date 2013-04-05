@@ -81,18 +81,26 @@ float estimateFocalLength(const pcl::PointCloud<PointT>::ConstPtr &cloud)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 string 
-make_name(int counter, const char* suffix)
+make_png_name(int counter, const char* suffix)
 {
   char buf[4096];
-  sprintf (buf, "./people%04d_%s.png", counter, suffix);
+  sprintf (buf, "./people_%04d_%s.png", counter, suffix);
   return buf;
 }
 
 string
-make_ext_name(int counter1, int counter2, const char* suffix)
+make_ext_png_name(int counter1, int counter2, const char* suffix)
 {
   char buf[4096];
   sprintf (buf, "./people_%04d_%04d_%s.png", counter1, counter2, suffix);
+  return buf;
+}
+
+string
+make_ext_pcd_name(int counter1, int counter2, const char* suffix)
+{
+  char buf[4096];
+  sprintf (buf, "./people_%04d_%04d_%s.pcd", counter1, counter2, suffix);
   return buf;
 }
 
@@ -108,6 +116,7 @@ savePNGFile(const std::string& filename, const pcl::gpu::DeviceArray2D<T>& arr)
 template <typename T> void
 savePNGFile (const std::string& filename, const pcl::PointCloud<T>& cloud)
 {
+  //PCL_DEBUG ("[savePNGFile] : (D) : writing %s with W:%d H:%d S:%d\n", filename.c_str(), cloud.width, cloud.height, cloud.points.size());
   pcl::io::savePNGFile(filename, cloud);
 }
 
@@ -162,24 +171,59 @@ class PeoplePCDApp
     visualizeAndWrite(const pcl::PointCloud<PointT>::ConstPtr &cloud)
     {
       PCL_DEBUG("[PeoplePCDApp::visualizeAndWrite] : (D) : called\n");
-      const PeopleDetector::Labels& labels = people_detector_.rdf_detector_->getLabels();
-      people::colorizeLabels(color_map_, labels, cmap_device_);
+
+
+      // First the 2nd it smooth labels
+      const PeopleDetector::Labels& labelsmooth = people_detector_.rdf_detector_->getSmoothLabels();
+      people::colorizeLabels(color_map_, labelsmooth, cmap_device_);
 
       int c;
-      pcl::PointCloud<pcl::RGB> cmap(cmap_device_.cols(), cmap_device_.rows());
-      cmap_device_.download(cmap.points, c);
+      pcl::PointCloud<pcl::RGB> cmap_smooth(cmap_device_.cols(), cmap_device_.rows());
+      cmap_device_.download(cmap_smooth.points, c);
 
-      //final_view_.showRGBImage<pcl::RGB>(cmap);
-      //final_view_.spinOnce(1, true);
+      savePNGFile(make_png_name(counter_, "c2s"), cmap_smooth);
 
-      //image_view_.showRGBImage<PointT>(cloud);
-      //image_view_.spinOnce(1, true);
+      // The 2nd it labels
+      const PeopleDetector::Labels& labels2 = people_detector_.rdf_detector_->getLabels();
+      people::colorizeLabels(color_map_, labels2, cmap_device_);
 
-      savePNGFile(make_name(counter_, "ii"), *cloud);
-      savePNGFile(make_name(counter_, "c2"), cmap);
-      savePNGFile(make_name(counter_, "s2"), labels);
-      savePNGFile(make_name(counter_, "d1"), people_detector_.depth_device1_);
-      savePNGFile(make_name(counter_, "d2"), people_detector_.depth_device2_);
+      pcl::PointCloud<pcl::RGB> cmap2(cmap_device_.cols(), cmap_device_.rows());
+      cmap_device_.download(cmap2.points, c);
+
+      savePNGFile(make_png_name(counter_, "c2"), cmap2);
+
+      // The 1st it labels
+      const PeopleDetector::Labels& labels1 = people_detector_.rdf_detector_->getLabelsFirst();
+      people::colorizeLabels(color_map_, labels1, cmap_device_);
+
+      pcl::PointCloud<pcl::RGB> cmap1(cmap_device_.cols(), cmap_device_.rows());
+      cmap_device_.download(cmap1.points, c);
+
+      savePNGFile(make_png_name(counter_, "c1"), cmap1);
+
+      // The 1st it labels
+      const PeopleDetector::Labels& labels1s = people_detector_.rdf_detector_->getSmoothLabelsFirst();
+      people::colorizeLabels(color_map_, labels1s, cmap_device_);
+
+      pcl::PointCloud<pcl::RGB> cmap1s(cmap_device_.cols(), cmap_device_.rows());
+      cmap_device_.download(cmap1s.points, c);
+
+      savePNGFile(make_png_name(counter_, "c1s"), cmap1s);
+
+      // Visualize
+      final_view_.showRGBImage<pcl::RGB>(cmap_smooth);
+      //final_view_.showRGBImage<pcl::RGB>(people_detector_.face_detector_);
+      final_view_.spinOnce(1, true);
+
+      image_view_.showRGBImage<PointT>(cloud);
+      image_view_.spinOnce(1, true);
+
+      // Save other PNG formats
+      savePNGFile(make_png_name(counter_, "ii"), *cloud);
+      savePNGFile(make_png_name(counter_, "haar"), people_detector_.face_detector_->cloud_gray_);
+      savePNGFile(make_png_name(counter_, "s2"), labelsmooth);
+      savePNGFile(make_png_name(counter_, "d1"), people_detector_.depth_device1_);
+      savePNGFile(make_png_name(counter_, "d2"), people_detector_.depth_device2_);
 
       PCL_DEBUG("[PeoplePCDApp::visualizeAndWrite] : (D) : Done writing files\n");
     }
@@ -187,7 +231,8 @@ class PeoplePCDApp
     void
     convertProbToRGB (pcl::PointCloud<pcl::device::prob_histogram>& histograms, int label, pcl::PointCloud<pcl::RGB>& rgb)
     {
-      for(size_t t; t < histograms.points.size(); t++)
+      //PCL_DEBUG("[PeoplePCDApp::convertProbToRGB] : (D) : size: %d\n", histograms.points.size());
+      for(size_t t = 0; t < histograms.points.size(); t++)
       {
         float value = histograms.points[t].probs[label];
         float value8 = value * 255;
@@ -198,6 +243,8 @@ class PeoplePCDApp
       }
       rgb.width = histograms.width;
       rgb.height = histograms.height;
+
+      //PCL_DEBUG("[PeoplePCDApp::convertProbToRGB] : (D) : W:%d H:%d S:%d\n",rgb.width, rgb.height, rgb.points.size());
     }
 
     void
@@ -206,53 +253,85 @@ class PeoplePCDApp
       PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : Called\n");
       //const pcl::device::LabelProbability& prob = people_detector_.rdf_detector_->getProbability1();
       int c;
-      // first write the first iteration
 
+      // first write the first iteration
       pcl::PointCloud<pcl::device::prob_histogram> prob_host(people_detector_.rdf_detector_->P_l_1_.cols(), people_detector_.rdf_detector_->P_l_1_.rows());
       people_detector_.rdf_detector_->P_l_1_.download(prob_host.points, c);
       prob_host.width = people_detector_.rdf_detector_->P_l_1_.cols();
       prob_host.height = people_detector_.rdf_detector_->P_l_1_.rows();
 
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile\n");
+      if(prob_host.width == 0)
+        PCL_ERROR ("[PeoplePCDApp::writeProb] : (E) : width == 0\n");
+
+      if(prob_host.height == 0)
+        PCL_ERROR ("[PeoplePCDApp::writeProb] : (E) : height == 0\n");
+
+      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile histogram1\n");
       for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
       {
         pcl::PointCloud<pcl::RGB> rgb;
         convertProbToRGB(prob_host, i, rgb);
-        savePNGFile(make_ext_name(counter_,i, "hist1"), rgb);
+        savePNGFile(make_ext_png_name(counter_,i, "hist1"), rgb);
+
+        //pcl::io::savePCDFileASCII (make_ext_pcd_name(counter_,i, "hist1"), rgb);
       }
 
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : cols1: %d\n", people_detector_.rdf_detector_->P_l_1_.cols ());
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : rows1: %d\n", people_detector_.rdf_detector_->P_l_1_.rows ());
-
       // and now again for the second iteration
-
       pcl::PointCloud<pcl::device::prob_histogram> prob_host2(people_detector_.rdf_detector_->P_l_2_.cols(), people_detector_.rdf_detector_->P_l_2_.rows());
       people_detector_.rdf_detector_->P_l_2_.download(prob_host2.points, c);
       prob_host.width = people_detector_.rdf_detector_->P_l_2_.cols();
       prob_host.height = people_detector_.rdf_detector_->P_l_2_.rows();
 
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile\n");
+      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile histogram2\n");
       for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
       {
         pcl::PointCloud<pcl::RGB> rgb;
         convertProbToRGB(prob_host2, i, rgb);
-        savePNGFile(make_ext_name(counter_, i, "hist2"), rgb);
+        savePNGFile(make_ext_png_name(counter_, i, "hist2"), rgb);
       }
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : cols2: %d\n", people_detector_.rdf_detector_->P_l_2_.cols());
-      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : rows2: %d\n", people_detector_.rdf_detector_->P_l_2_.rows());
 
       // and now again for the Gaus test
+      pcl::PointCloud<pcl::device::prob_histogram> prob_host_gaus(people_detector_.rdf_detector_->P_l_Gaus_.cols(), people_detector_.rdf_detector_->P_l_Gaus_.rows());
+      people_detector_.rdf_detector_->P_l_Gaus_.download(prob_host_gaus.points, c);
+      prob_host_gaus.width = people_detector_.rdf_detector_->P_l_Gaus_.cols();
+      prob_host_gaus.height = people_detector_.rdf_detector_->P_l_Gaus_.rows();
 
-        pcl::PointCloud<pcl::device::prob_histogram> prob_host3(people_detector_.rdf_detector_->P_l_Gaus_.cols(), people_detector_.rdf_detector_->P_l_Gaus_.rows());
-        people_detector_.rdf_detector_->P_l_Gaus_.download(prob_host3.points, c);
-        prob_host3.width = people_detector_.rdf_detector_->P_l_Gaus_.cols();
-        prob_host3.height = people_detector_.rdf_detector_->P_l_Gaus_.rows();
-        for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
-        {
-          pcl::PointCloud<pcl::RGB> rgb;
-          convertProbToRGB(prob_host3, i, rgb);
-          savePNGFile(make_ext_name(counter_, i, "gaus"), rgb);
-        }
+      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile gaus\n");
+      for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
+      {
+        pcl::PointCloud<pcl::RGB> rgb;
+        convertProbToRGB(prob_host_gaus, i, rgb);
+        savePNGFile(make_ext_png_name(counter_, i, "gaus"), rgb);
+      }
+
+      // and now again for the Gaus Temp
+      pcl::PointCloud<pcl::device::prob_histogram> prob_host_gaus_temp(people_detector_.rdf_detector_->P_l_Gaus_Temp_.cols(), people_detector_.rdf_detector_->P_l_Gaus_Temp_.rows());
+      people_detector_.rdf_detector_->P_l_Gaus_Temp_.download(prob_host_gaus_temp.points, c);
+      prob_host_gaus_temp.width = people_detector_.rdf_detector_->P_l_Gaus_Temp_.cols();
+      prob_host_gaus_temp.height = people_detector_.rdf_detector_->P_l_Gaus_Temp_.rows();
+
+      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile gaus temp\n");
+      for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
+      {
+        pcl::PointCloud<pcl::RGB> rgb;
+        convertProbToRGB(prob_host_gaus_temp, i, rgb);
+        savePNGFile(make_ext_png_name(counter_, i, "gaus_temp"), rgb);
+      }
+
+      // and now again for the Org Planes
+      pcl::PointCloud<pcl::device::prob_histogram> prob_host_plane(people_detector_.org_plane_detector_->P_l_dev_.cols(), people_detector_.org_plane_detector_->P_l_dev_.rows());
+      people_detector_.org_plane_detector_->P_l_dev_.download(prob_host_plane.points, c);
+      prob_host_plane.width = people_detector_.rdf_detector_->P_l_Gaus_Temp_.cols();
+      prob_host_plane.height = people_detector_.rdf_detector_->P_l_Gaus_Temp_.rows();
+
+      PCL_DEBUG("[PeoplePCDApp::writeProb] : (D) : savePNGFile planes\n");
+      for(int i = 0; i < pcl::gpu::people::NUM_LABELS; i++)
+      {
+        pcl::PointCloud<pcl::RGB> rgb;
+        convertProbToRGB(prob_host_plane, i, rgb);
+        savePNGFile(make_ext_png_name(counter_, i, "plane"), rgb);
+      }
+
     }
 
     int counter_;
@@ -260,8 +339,8 @@ class PeoplePCDApp
     PeopleDetector people_detector_;
     PeopleDetector::Image cmap_device_;
 
-    //ImageViewer final_view_;
-    //ImageViewer image_view_;
+    ImageViewer final_view_;
+    ImageViewer image_view_;
 
     pcl::gpu::DeviceArray<pcl::RGB> color_map_;
 };
@@ -275,21 +354,21 @@ void print_help()
   PCL_INFO("\t -tree2 \t<path_to_tree_file>\n");
   PCL_INFO("\t -tree3 \t<path_to_tree_file>\n");
   PCL_INFO("\t -prob  \t<bool> \tsave prob files or not, default 0\n");
-  PCL_INFO("\t -debug \t<bool> \tset debug output");
+  PCL_INFO("\t -debug \t<bool> \tset debug output\n");
   PCL_INFO("\t -pcd   \t<path_to_pcd_file>\n");
   PCL_INFO("\t -XML   \t<path_to_XML_file> \tcontains person specifics, defaults to generic.xml\n");
 }
 
 int main(int argc, char** argv)
 {
-  PCL_INFO("[Main] : (I) : People tracking on PCD files version 0.2\n");
+  PCL_INFO("[Main] : (I) : People tracking on PCD files version 0.3\n");
   if(find_switch (argc, argv, "--help") || find_switch (argc, argv, "-h"))
     return print_help(), 0;
 
   bool saveProb = 1;
   parse_argument (argc, argv, "-prob", saveProb);
 
-  bool debugOutput = 0;
+  bool debugOutput = 1;
   parse_argument (argc, argv, "-debug", debugOutput);
   if(debugOutput)
     setVerbosityLevel(L_DEBUG);
@@ -308,7 +387,7 @@ int main(int argc, char** argv)
   parse_argument (argc, argv, "-tree2", treeFilenames[2]);
   parse_argument (argc, argv, "-tree3", treeFilenames[3]);
 
-  std::string XMLfilename("generic.xml");
+  std::string XMLfilename("/data/git/pcl/gpu/people/data/generic.xml");
   parse_argument (argc, argv, "-XML", XMLfilename);
   PCL_DEBUG("[Main] : (D) : Will read XML %s\n", XMLfilename.c_str());
 
@@ -319,7 +398,7 @@ int main(int argc, char** argv)
   }
   PCL_DEBUG("[Main] : (D) : Read %d Trees\n", numTrees);
 
-  std::string pcdname("/home/u0062536/Data/pcd/koen.pcd");
+  std::string pcdname("/data/pcd/koen.pcd");
   parse_argument (argc, argv, "-pcd", pcdname);
 
   PCL_DEBUG("[Main] : (D) : Will read %s\n", pcdname.c_str());
@@ -327,7 +406,6 @@ int main(int argc, char** argv)
   // loading cloud file
   pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
 
-  //int res = pcl::io::loadPCDFile<PointT> ("/home/u0062536/Data/pcd/koen.pcd", *cloud);
   int res = pcl::io::loadPCDFile<PointT> (pcdname, *cloud);
 
   if (res == -1) //* load the file
@@ -356,27 +434,33 @@ int main(int argc, char** argv)
   PCL_DEBUG("[Main] : (D) : filename %s\n", XMLfilename.c_str());
 
   /// Run the app
-  //{
-    //pcl::ScopeTime frame_time("[Main] : (I) : frame_time");
+  {
+    pcl::ScopeTime frame_time("[Main] : (I) : frame_time");
     app.cloud_cb(cloud);
-  //}
+  }
   if(app.processReturn == 1)
   {
-    PCL_INFO("[Main] : (I) : Calling visualisation and write return 1\n");
+    PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 1\n");
     app.visualizeAndWrite(cloud);
     if(saveProb)
+    {
+      PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
       app.writeProb(cloud);
+    }
   }
   else if(app.processReturn == 2)
   {
-    PCL_INFO("[Main] : (I) : Calling visualisation and write return 2\n");
+    PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 2\n");
     app.visualizeAndWrite(cloud);
     if(saveProb)
+    {
+      PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
       app.writeProb(cloud);
+    }
   }
   else
   {
-    PCL_INFO("[Main] : (I) : No good person found\n");
+    PCL_DEBUG("[Main] : (D) : No good person found\n");
   }
   //app.final_view_.spin();
 
