@@ -38,6 +38,15 @@
  * @copyright Copyright (2011) Willow Garage
  * @authors Koen Buys, Anatoly Baksheev
  **/
+
+#include <boost/filesystem.hpp>
+
+#include <Eigen/Core>
+
+#include <fstream>
+
+#include <iostream>
+
 #include <pcl/pcl_base.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -45,16 +54,11 @@
 #include <pcl/console/parse.h>
 #include <pcl/console/print.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/png_io.h>
 #include <pcl/gpu/people/people_detector.h>
 #include <pcl/gpu/people/colormap.h>
 #include <pcl/visualization/image_viewer.h>
 #include <pcl/search/pcl_search.h>
-#include <Eigen/Core>
-
-#include <pcl/io/png_io.h>
-
-#include <iostream>
-#include <fstream>
 
 using namespace pcl::visualization;
 using namespace pcl::console;
@@ -79,6 +83,26 @@ float estimateFocalLength(const pcl::PointCloud<PointT>::ConstPtr &cloud)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+vector<string> getPcdFilesInDir(const string& directory)
+    {
+  namespace fs = boost::filesystem;
+  fs::path dir(directory);
+
+  if (!fs::exists(dir) || !fs::is_directory(dir))
+    PCL_THROW_EXCEPTION(pcl::IOException, "[getPcdFilesInDir] : Wrong PCD directory");
+
+  vector<string> result;
+  fs::directory_iterator pos(dir);
+  fs::directory_iterator end;
+
+  for(; pos != end ; ++pos)
+    if (fs::is_regular_file(pos->status()) )
+      if (fs::extension(*pos) == ".pcd")
+        result.push_back(pos->path().string());
+
+  return result;
+    }
 
 string 
 make_png_name(int counter, const char* suffix)
@@ -372,13 +396,13 @@ int main(int argc, char** argv)
   parse_argument (argc, argv, "-debug", debugOutput);
   if(debugOutput)
     setVerbosityLevel(L_DEBUG);
- 
+
   std::string treeFilenames[4] = 
   {
-    "d:/TreeData/results/forest1/tree_20.txt",
-    "d:/TreeData/results/forest2/tree_20.txt",
-    "d:/TreeData/results/forest3/tree_20.txt",
-    "d:/TreeData/results/forest3/tree_20.txt"
+      "d:/TreeData/results/forest1/tree_20.txt",
+      "d:/TreeData/results/forest2/tree_20.txt",
+      "d:/TreeData/results/forest3/tree_20.txt",
+      "d:/TreeData/results/forest3/tree_20.txt"
   };
   int numTrees = 4;
   parse_argument (argc, argv, "-numTrees", numTrees);
@@ -393,28 +417,10 @@ int main(int argc, char** argv)
 
   if (numTrees == 0 || numTrees > 4)
   {
-      PCL_ERROR("[Main] : (E) : Main : Invalid number of trees\n");
-      return -1;
+    PCL_ERROR("[Main] : (E) : Main : Invalid number of trees\n");
+    return -1;
   }
   PCL_DEBUG("[Main] : (D) : Read %d Trees\n", numTrees);
-
-  std::string pcdname("/data/pcd/koen.pcd");
-  parse_argument (argc, argv, "-pcd", pcdname);
-
-  PCL_DEBUG("[Main] : (D) : Will read %s\n", pcdname.c_str());
-
-  // loading cloud file
-  pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
-
-  int res = pcl::io::loadPCDFile<PointT> (pcdname, *cloud);
-
-  if (res == -1) //* load the file
-  {
-    PCL_ERROR("[Main] : (E) : Couldn't read cloud file\n");
-    return res;
-  }
-
-  //PCL_INFO("(I) : Main : Loaded %d data points from %s",cloud->width * cloud->height, pcdname);
 
   // loading trees
   using pcl::gpu::people::RDFBodyPartsDetector;
@@ -426,43 +432,96 @@ int main(int argc, char** argv)
 
   // Create the app
   PeoplePCDApp app;
-  PCL_DEBUG("[Main] : (D) : App created");
+  PCL_DEBUG("[Main] : (D) : App created\n");
   app.people_detector_.rdf_detector_ = rdf;
 
   // Read in person specific configuration
   app.readXMLFile(XMLfilename);
-  PCL_DEBUG("[Main] : (D) : filename %s\n", XMLfilename.c_str());
+  PCL_DEBUG("[Main] : (D) : Person configuration filename %s\n", XMLfilename.c_str());
 
-  /// Run the app
+  string pcd_file, pcd_folder;
+  vector<string> pcd_files;
+
+  // See if we can find a folder or a PCD file to load
+  try
   {
-    pcl::ScopeTime frame_time("[Main] : (I) : frame_time");
-    app.cloud_cb(cloud);
-  }
-  if(app.processReturn == 1)
-  {
-    PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 1\n");
-    app.visualizeAndWrite(cloud);
-    if(saveProb)
+    if (pcl::console::parse_argument (argc, argv, "-pcd", pcd_file) > 0)
     {
-      PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
-      app.writeProb(cloud);
+      if (boost::filesystem::is_regular_file(pcd_file) )
+      {
+        if (boost::filesystem::extension(boost::filesystem::path(pcd_file)) == ".pcd")
+        {
+          pcd_files.push_back(pcd_file);
+          PCL_DEBUG("[Main] : (D) : Will read %s\n", pcd_file.c_str());
+        }
+        else
+        {
+          PCL_ERROR("[Main] : (E) : Not correct .pcd extension\n");
+          return -1;
+        }
+      }
+      else
+      {
+        PCL_ERROR("[Main] : (E) : Not correct file type given\n");
+        return -1;
+      }
+    }
+    else if (pcl::console::parse_argument (argc, argv, "-pcd_folder", pcd_folder) > 0)
+    {
+      pcd_files = getPcdFilesInDir(pcd_folder);
+      PCL_DEBUG("[Main] : (D) : Indexed %d files\n", pcd_files.size());
     }
   }
-  else if(app.processReturn == 2)
+  catch (const pcl::PCLException& /*e*/)
   {
-    PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 2\n");
-    app.visualizeAndWrite(cloud);
-    if(saveProb)
+    return PCL_ERROR ("[Main] : (E) : Can't open depth source\n"), -1;
+  }
+
+  std::sort(pcd_files.begin(), pcd_files.end());
+
+  // Now iterate over the pcd files
+  for(unsigned int i = 0; i < pcd_files.size(); i++)
+  {
+    // loading cloud file
+    pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
+
+    int res = pcl::io::loadPCDFile<PointT> (pcd_files[i], *cloud);
+
+    if (res == -1) //* load the file
     {
-      PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
-      app.writeProb(cloud);
+      PCL_ERROR("[Main] : (E) : Couldn't read cloud file\n");
+      return res;
+    }
+
+    /// Run the app
+    {
+      pcl::ScopeTime frame_time("[Main] : (I) : frame_time");
+      app.cloud_cb(cloud);
+    }
+    if(app.processReturn == 1)
+    {
+      PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 1\n");
+      app.visualizeAndWrite(cloud);
+      if(saveProb)
+      {
+        PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
+        app.writeProb(cloud);
+      }
+    }
+    else if(app.processReturn == 2)
+    {
+      PCL_DEBUG("[Main] : (D) : Calling visualisation and write return 2\n");
+      app.visualizeAndWrite(cloud);
+      if(saveProb)
+      {
+        PCL_DEBUG("[Main] : (D) : Saving probabilities\n");
+        app.writeProb(cloud);
+      }
+    }
+    else
+    {
+      PCL_DEBUG("[Main] : (D) : No good person found\n");
     }
   }
-  else
-  {
-    PCL_DEBUG("[Main] : (D) : No good person found\n");
-  }
-  //app.final_view_.spin();
-
   return 0;
 }
