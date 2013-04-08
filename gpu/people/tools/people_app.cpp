@@ -419,7 +419,7 @@ int main(int argc, char** argv)
       //capture.reset( new pcl::PCDGrabber<PointXYZRGBA>(pcd_files, 30, true) );      
     }
   }
-  catch (const pcl::PCLException& /*e*/) { return cout << "Can't open depth source" << endl, -1; }
+  catch (const pcl::PCLException& /*e*/) { return PCL_ERROR ("Can't open depth source\n"), -1; }
     
   //selecting tree files
   vector<string> tree_files;
