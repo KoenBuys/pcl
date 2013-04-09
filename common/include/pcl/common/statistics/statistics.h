@@ -39,9 +39,10 @@
 #define PCL_COMMON_HISTOGRAM_H_
 
 #include <pcl/pcl_base.h>
+#include <boost/shared_ptr.hpp>
 
 /**
- * Histogram workflow:
+ * \brief Histogram workflow:
  * - Histogram is created as object
  * - A pointcloud of PointT is handed as input
  * - A function ptr is asked for "process function"
@@ -52,18 +53,21 @@
 
 namespace pcl {
   template <typename PointT>
-  class HistogramStatistics : public pcl::PCLBase <PointT> {
+  class HistogramStatistics : public pcl::PCLBase <PointT>
+  {
     public:
       typedef float (PointT::*AttributePtr);
       typedef int (*fptr_)(PointT);
       fptr_ function_ptr_;                        // This is the method the user needs to implement
 
+      typedef boost::shared_ptr<HistogramStatistics> Ptr;
+
       HistogramStatistics (float min, float max, unsigned int dim, bool cumulative = false, bool normalize = false)
-        :min_ (min)
+        :cumulative_ (cumulative)
+        ,normalize_ (normalize)
+        ,min_ (min)
         ,max_ (max)
         ,dim_ (dim)
-        ,cumulative_ (cumulative)
-        ,normalize_ (normalize)
       {
       }
 
