@@ -196,7 +196,6 @@ class PeoplePCDApp
     {
       PCL_DEBUG("[PeoplePCDApp::visualizeAndWrite] : (D) : called\n");
 
-
       // First the 2nd it smooth labels
       const PeopleDetector::Labels& labelsmooth = people_detector_.rdf_detector_->getSmoothLabels();
       people::colorizeLabels(color_map_, labelsmooth, cmap_device_);

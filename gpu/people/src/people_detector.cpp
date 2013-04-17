@@ -59,10 +59,11 @@ using namespace pcl::gpu::people;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pcl::gpu::people::PeopleDetector::PeopleDetector(bool enable_org_plane_detector, bool enable_haar_cascade_detector)
+pcl::gpu::people::PeopleDetector::PeopleDetector(bool enable_org_plane_detector, bool enable_haar_cascade_detector, bool enable_histogram_detector)
     : fx_(525.f), fy_(525.f), cx_(319.5f), cy_(239.5f), delta_hue_tolerance_(5),
       enable_org_plane_detector_(enable_org_plane_detector),
-      enable_haar_cascade_detector_(enable_haar_cascade_detector)
+      enable_haar_cascade_detector_(enable_haar_cascade_detector),
+      enable_histogram_detector_(enable_histogram_detector)
 {
   PCL_DEBUG ("[pcl::gpu::people::PeopleDetector] : (D) : Constructor called\n");
 

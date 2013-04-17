@@ -40,6 +40,10 @@
 #ifndef PCL_GPU_PEOPLE_HISTOGRAM_DETECTOR_H
 #define PCL_GPU_PEOPLE_HISTOGRAM_DETECTOR_H
 
+#include <pcl/pcl_exports.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+
 #include <pcl/gpu/people/label_detector.h>
 #include <pcl/common/statistics/statistics.h>
 
@@ -52,13 +56,17 @@ namespace pcl
       class HistogramDetector : public LabelDetector
       {
         public:
-          HistogramStatistics::Ptr histogram;
+          typedef boost::shared_ptr<HistogramDetector> Ptr;
+          typedef pcl::PointXYZRGBA               PointTC;
+          typedef DeviceArray2D<unsigned char>    Labels;
+
+          HistogramStatistics<PointTC>::Ptr histogram_host;
 
           /** \brief Default Histogram Detector Constructor */
-          HistogramDetector()
-          {
+          HistogramDetector();
 
-          }
+          void
+          process(const PointCloud<PointTC>::ConstPtr &cloud, Labels labels);
       };
     }
   }

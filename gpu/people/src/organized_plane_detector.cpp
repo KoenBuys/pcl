@@ -81,6 +81,13 @@ pcl::gpu::people::OrganizedPlaneDetector::process(const PointCloud<PointTC>::Con
 {
   PCL_DEBUG("[pcl::gpu::people::OrganizedPlaneDetector::process] : (D) : Called\n");
 
+  // Clear the histogram
+  for(unsigned int p = 0; p < cloud->points.size(); p++)
+  {
+    for(unsigned int q = 0; p < NUM_LABELS;p++)
+      P_l_host_.points[p].probs[p] = 0.0f;
+  }
+
   // Estimate Normals
   normal_cloud_ = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>);
   //pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
@@ -111,7 +118,7 @@ pcl::gpu::people::OrganizedPlaneDetector::process(const PointCloud<PointTC>::Con
   // Fill in the probabilities
   for(int plane = 0; plane < inlier_indices.size(); plane++)                                            // iterate over all found planes
   {
-    for(int idx = 0; idx < inlier_indices[plane].indices.size(); idx++)                               // iterate over all the indices in that plane
+    for(int idx = 0; idx < inlier_indices[plane].indices.size(); idx++)                                 // iterate over all the indices in that plane
     {
       P_l_host_.points[inlier_indices[plane].indices[idx]].probs[pcl::gpu::people::Background] = 1.f;   // set background at max
     }

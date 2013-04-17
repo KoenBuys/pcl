@@ -52,6 +52,8 @@
 #include <pcl/gpu/people/bodyparts_detector.h>
 #include <pcl/gpu/people/haar_cascade_detector.h>
 #include <pcl/gpu/people/organized_plane_detector.h>
+#include <pcl/gpu/people/histogram_detector.h>
+
 #include <pcl/gpu/people/probability_processor.h>
 
 namespace pcl
@@ -80,6 +82,9 @@ namespace pcl
           RDFBodyPartsDetector::Ptr     rdf_detector_;
           OrganizedPlaneDetector::Ptr   org_plane_detector_;
           HaarCascadeDetector::Ptr      haar_cascade_detector_;
+
+          HistogramDetector::Ptr        histogram_detector_;
+
           //OtherDetector::Ptr          other_detector_;
 
           // ALL THE OTHER PEOPLE STUFF
@@ -87,7 +92,7 @@ namespace pcl
           ProbabilityProcessor::Ptr     probability_processor_;
 
           /** \brief Class constructor. */
-          PeopleDetector (bool enable_org_plane_detector = true, bool enable_haar_cascade_detector = false);
+          PeopleDetector (bool enable_org_plane_detector = true, bool enable_haar_cascade_detector = false, bool enable_histogram_detector = false);
           
           /** \brief Class destructor. */
           ~PeopleDetector () {}                   
@@ -135,6 +140,7 @@ namespace pcl
           bool enable_org_plane_detector_;              // mark if background measurements of organised plane segmentation need to be included
           bool enable_haar_cascade_detector_;           // mark if measurements of haar cascade classifier need to be included
           bool enable_rdf_detector_;                    // mark if measurements of random decision forests need to be included
+          bool enable_histogram_detector_;
                    
           DeviceArray<unsigned char>  kernelRect5x5_;
 
