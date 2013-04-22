@@ -192,8 +192,8 @@ pcl::ImageGrabberBase::ImageGrabberImpl::ImageGrabberImpl (pcl::ImageGrabberBase
   , manual_intrinsics_ (false)
   , focal_length_x_ (525.)
   , focal_length_y_ (525.)
-  , principal_point_x_ (320.)
-  , principal_point_y_ (240.)
+  , principal_point_x_ (319.5)
+  , principal_point_y_ (239.5)
   , num_threads_ (1)
 {
   if(pclzf_mode_)
@@ -229,8 +229,8 @@ pcl::ImageGrabberBase::ImageGrabberImpl::ImageGrabberImpl (pcl::ImageGrabberBase
   , manual_intrinsics_ (false)
   , focal_length_x_ (525.)
   , focal_length_y_ (525.)
-  , principal_point_x_ (320.)
-  , principal_point_y_ (240.)
+  , principal_point_x_ (319.5)
+  , principal_point_y_ (239.5)
   , num_threads_ (1)
 {
   loadDepthAndRGBFiles (depth_dir, rgb_dir);
@@ -258,8 +258,8 @@ pcl::ImageGrabberBase::ImageGrabberImpl::ImageGrabberImpl (pcl::ImageGrabberBase
   , manual_intrinsics_ (false)
   , focal_length_x_ (525.)
   , focal_length_y_ (525.)
-  , principal_point_x_ (320.)
-  , principal_point_y_ (240.)
+  , principal_point_x_ (319.5)
+  , principal_point_y_ (239.5)
   , num_threads_ (1)
 {
   depth_image_files_ = depth_image_files;
@@ -591,8 +591,8 @@ pcl::ImageGrabberBase::ImageGrabberImpl::getCloudVTK (size_t idx,
   {
     // The 525 factor default is only true for VGA. If not, we should scale
     scaleFactorX = scaleFactorY = 1/525.f * 640.f / static_cast<float> (dims[0]);
-    centerX = static_cast<float> (dims[0] >> 1);
-    centerY = static_cast<float> (dims[1] >> 1);
+    centerX = ((float)dims[0] - 1.f)/2.f;
+    centerY = ((float)dims[1] - 1.f)/2.f;
   }
 
   if(rgb_image_files_.size() > 0)
